@@ -1,0 +1,3 @@
+pip install -r requirement.txt
+
+MAPE (pour P6 à connaître si on me pause une question)

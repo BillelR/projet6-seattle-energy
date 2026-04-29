@@ -1,0 +1,10 @@
+venv_projet6/
+__pycache__/
+*.pyc
+model.pkl
+.ipynb_checkpoints/
+*.zip
+venv_projet6/
+.venv/
+model.pkl
+__pycache__/
