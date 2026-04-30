@@ -1,20 +1,20 @@
 """
 test_api.py
 ───────────
-Script de test de l'API BentoML en local.
+Script de test de l'API FastAPI en local.
 L'API doit être démarrée avant de lancer ce script :
 
-    bentoml serve service.py:svc --reload
+    python3 -m uvicorn service:app --reload --port 8000
 
 Puis dans un autre terminal :
 
-    python test_api.py
+    python3 test_api.py
 """
 
 import requests
 import json
 
-BASE_URL = "http://localhost:3000"
+BASE_URL = "http://localhost:8000"
 
 
 def test_predict(label: str, payload: dict) -> None:
@@ -35,10 +35,10 @@ def test_predict(label: str, payload: dict) -> None:
             print(f"  Erreur : {r.text[:300]}")
     except requests.exceptions.ConnectionError:
         print("  ERREUR : l'API n'est pas démarrée.")
-        print("  Lancez : bentoml serve service.py:svc --reload")
+        print("  Lancez : python3 -m uvicorn service:app --reload --port 8000")
 
 
-# ── Test 1 : Cas nominal — grand immeuble de bureaux ──────────────────────────
+# ── Test 1 : Grand immeuble de bureaux ────────────────────────────
 test_predict(
     "Grand immeuble de bureaux (Office, 12 étages, 1995)",
     {
@@ -58,7 +58,7 @@ test_predict(
     },
 )
 
-# ── Test 2 : Petit bâtiment ancien ────────────────────────────────────────────
+# ── Test 2 : Petit bâtiment commercial ancien ─────────────────────
 test_predict(
     "Petit bâtiment commercial ancien (Retail, 2 étages, 1935)",
     {
@@ -78,7 +78,7 @@ test_predict(
     },
 )
 
-# ── Test 3 : Hôtel (forte consommation attendue) ──────────────────────────────
+# ── Test 3 : Hôtel ────────────────────────────────────────────────
 test_predict(
     "Hôtel (Hotel, 15 étages, 2003)",
     {
@@ -98,9 +98,9 @@ test_predict(
     },
 )
 
-# ── Test 4 : Validation — champ inconnu (doit retourner erreur 422) ────────────
+# ── Test 4 : Champ inconnu (doit retourner erreur 422) ────────────
 print(f"\n{'─'*55}")
-print("TEST : Champ inconnu dans la requête (doit échouer — 422)")
+print("TEST : Champ inconnu (doit échouer — 422)")
 print(f"{'─'*55}")
 r = requests.post(f"{BASE_URL}/predict", json={
     "NumberofBuildings": 1,
@@ -114,13 +114,13 @@ r = requests.post(f"{BASE_URL}/predict", json={
     "Longitude": -122.33,
     "CouncilDistrictCode": 7,
     "LargestPropertyUseType": "Office",
-    "champ_inconnu": "valeur_interdite",   # ce champ doit être rejeté
+    "champ_inconnu": "valeur_interdite",
 }, timeout=10)
 print(f"  Statut attendu : 422 | Statut reçu : {r.status_code}")
 if r.status_code == 422:
     print("  Validation OK — champ inconnu bien rejeté")
 
-# ── Test 5 : Validation — parking > surface totale (doit échouer — 422) ───────
+# ── Test 5 : Parking > surface totale (doit retourner erreur 422) ──
 print(f"\n{'─'*55}")
 print("TEST : Parking > Surface totale (doit échouer — 422)")
 print(f"{'─'*55}")
@@ -130,7 +130,7 @@ r = requests.post(f"{BASE_URL}/predict", json={
     "ENERGYSTARScore": 60.0,
     "YearBuilt": 2000,
     "PropertyGFATotal": 10000.0,
-    "PropertyGFAParking": 99999.0,    # incohérent : parking > total
+    "PropertyGFAParking": 99999.0,
     "LargestPropertyUseTypeGFA": 9000.0,
     "Latitude": 47.61,
     "Longitude": -122.33,
@@ -141,11 +141,11 @@ print(f"  Statut attendu : 422 | Statut reçu : {r.status_code}")
 if r.status_code == 422:
     print("  Validation OK — incohérence bien rejetée")
 
-# ── Test 6 : Santé de l'API ───────────────────────────────────────────────────
+# ── Test 6 : Santé de l'API (GET) ────────────────────────────────
 print(f"\n{'─'*55}")
-print("TEST : Endpoint /health")
+print("TEST : Endpoint GET /health")
 print(f"{'─'*55}")
-r = requests.post(f"{BASE_URL}/health", json={}, timeout=5)
+r = requests.get(f"{BASE_URL}/health", timeout=5)  # GET et non POST
 print(f"  Statut : {r.status_code}")
 print(f"  Réponse : {r.json()}")
 
