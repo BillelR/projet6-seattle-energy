@@ -69,7 +69,7 @@ FEATURES_NUM = [
     "Latitude", "Longitude", "CouncilDistrictCode",
 ]
 FEATURES_CAT = ["LargestPropertyUseType", "EraConstruction"]
-TARGET = "SiteEnergyUse(kBtu)"
+TARGET = "SiteEnergyUseWN(kBtu)"
 
 X = df[FEATURES_NUM + FEATURES_CAT].copy()
 y = np.log1p(df[TARGET])
