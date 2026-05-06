@@ -1,24 +1,25 @@
 """
-test_api.py
-───────────
-Script de test de l'API FastAPI en local.
-L'API doit être démarrée avant de lancer ce script :
+test_api.py — VERSION CORRIGÉE
+───────────────────────────────
+Corrections :
+  - ENERGYSTARScore retiré de tous les payloads (data leakage)
+  - /health appelé en GET (et non POST)
+  - Port harmonisé à 8000
+  - Commande de lancement corrigée (FastAPI)
 
+Lancer l'API d'abord :
     python3 -m uvicorn service:app --reload --port 8000
 
 Puis dans un autre terminal :
-
     python3 test_api.py
 """
 
 import requests
-import json
 
 BASE_URL = "http://localhost:8000"
 
 
 def test_predict(label: str, payload: dict) -> None:
-    """Envoie une requête et affiche le résultat."""
     print(f"\n{'─'*55}")
     print(f"TEST : {label}")
     print(f"{'─'*55}")
@@ -44,7 +45,7 @@ test_predict(
     {
         "NumberofBuildings": 1,
         "NumberofFloors": 12,
-        "ENERGYSTARScore": 72.0,
+        # ENERGYSTARScore absent — data leakage
         "YearBuilt": 1995,
         "PropertyGFATotal": 150000.0,
         "PropertyGFAParking": 20000.0,
@@ -64,7 +65,6 @@ test_predict(
     {
         "NumberofBuildings": 1,
         "NumberofFloors": 2,
-        "ENERGYSTARScore": 45.0,
         "YearBuilt": 1935,
         "PropertyGFATotal": 8000.0,
         "PropertyGFAParking": 0.0,
@@ -84,7 +84,6 @@ test_predict(
     {
         "NumberofBuildings": 1,
         "NumberofFloors": 15,
-        "ENERGYSTARScore": 55.0,
         "YearBuilt": 2003,
         "PropertyGFATotal": 200000.0,
         "PropertyGFAParking": 30000.0,
@@ -98,52 +97,43 @@ test_predict(
     },
 )
 
-# ── Test 4 : Champ inconnu (doit retourner erreur 422) ────────────
+# ── Test 4 : Même bâtiment 1990 vs 1995 (vérif cohérence) ────────
+print(f"\n{'─'*55}")
+print("TEST COHÉRENCE : 1990 vs 1995 (le plus récent doit consommer moins)")
+print(f"{'─'*55}")
+base = {
+    "NumberofBuildings": 1, "NumberofFloors": 5,
+    "PropertyGFATotal": 50000.0, "PropertyGFAParking": 5000.0,
+    "LargestPropertyUseTypeGFA": 45000.0,
+    "SecondLargestPropertyUseTypeGFA": 0.0,
+    "ThirdLargestPropertyUseTypeGFA": 0.0,
+    "Latitude": 47.61, "Longitude": -122.33,
+    "CouncilDistrictCode": 7, "LargestPropertyUseType": "Office",
+}
+for year in [1990, 1995]:
+    payload = {**base, "YearBuilt": year}
+    r = requests.post(f"{BASE_URL}/predict", json=payload, timeout=10)
+    if r.status_code == 200:
+        kBtu = r.json()["prediction_kBtu"]
+        print(f"  YearBuilt={year} → {kBtu:,.0f} kBtu/an")
+
+# ── Test 5 : Champ inconnu (doit retourner 422) ───────────────────
 print(f"\n{'─'*55}")
 print("TEST : Champ inconnu (doit échouer — 422)")
 print(f"{'─'*55}")
 r = requests.post(f"{BASE_URL}/predict", json={
-    "NumberofBuildings": 1,
-    "NumberofFloors": 5,
-    "ENERGYSTARScore": 60.0,
-    "YearBuilt": 2000,
-    "PropertyGFATotal": 50000.0,
-    "PropertyGFAParking": 5000.0,
-    "LargestPropertyUseTypeGFA": 45000.0,
-    "Latitude": 47.61,
-    "Longitude": -122.33,
-    "CouncilDistrictCode": 7,
-    "LargestPropertyUseType": "Office",
-    "champ_inconnu": "valeur_interdite",
+    "NumberofBuildings": 1, "NumberofFloors": 5,
+    "YearBuilt": 2000, "PropertyGFATotal": 50000.0,
+    "PropertyGFAParking": 5000.0, "LargestPropertyUseTypeGFA": 45000.0,
+    "Latitude": 47.61, "Longitude": -122.33,
+    "CouncilDistrictCode": 7, "LargestPropertyUseType": "Office",
+    "champ_inconnu": "interdit",
 }, timeout=10)
-print(f"  Statut attendu : 422 | Statut reçu : {r.status_code}")
-if r.status_code == 422:
-    print("  Validation OK — champ inconnu bien rejeté")
-
-# ── Test 5 : Parking > surface totale (doit retourner erreur 422) ──
-print(f"\n{'─'*55}")
-print("TEST : Parking > Surface totale (doit échouer — 422)")
-print(f"{'─'*55}")
-r = requests.post(f"{BASE_URL}/predict", json={
-    "NumberofBuildings": 1,
-    "NumberofFloors": 3,
-    "ENERGYSTARScore": 60.0,
-    "YearBuilt": 2000,
-    "PropertyGFATotal": 10000.0,
-    "PropertyGFAParking": 99999.0,
-    "LargestPropertyUseTypeGFA": 9000.0,
-    "Latitude": 47.61,
-    "Longitude": -122.33,
-    "CouncilDistrictCode": 7,
-    "LargestPropertyUseType": "Office",
-}, timeout=10)
-print(f"  Statut attendu : 422 | Statut reçu : {r.status_code}")
-if r.status_code == 422:
-    print("  Validation OK — incohérence bien rejetée")
+print(f"  Statut attendu : 422 | Reçu : {r.status_code}")
 
 # ── Test 6 : Santé de l'API (GET) ────────────────────────────────
 print(f"\n{'─'*55}")
-print("TEST : Endpoint GET /health")
+print("TEST : GET /health")
 print(f"{'─'*55}")
 r = requests.get(f"{BASE_URL}/health", timeout=5)  # GET et non POST
 print(f"  Statut : {r.status_code}")

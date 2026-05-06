@@ -1,14 +1,12 @@
-# bentofile.yaml
-# ───────────────
-# Fichier de configuration pour packager et déployer l'API FastAPI.
+# bentofile.yaml — VERSION CORRIGÉE
+# ────────────────────────────────────
+# Framework : FastAPI (harmonisé partout)
+# Port      : 8000 (harmonisé partout)
 #
-# Commandes utiles :
-#   python3 save_model_pkl.py          → entraîne et sauvegarde le modèle
-#   python3 -m uvicorn service:app --reload --port 8000  → lancement local
-#   http://localhost:8000/docs         → interface Swagger
-#
-# ⚠️  Arrêtez le déploiement Cloud dès que vos tests sont terminés
-#     pour ne pas consommer de ressources inutilement.
+# Commandes :
+#   python3 save_model_pkl.py                              → génère model.pkl
+#   python3 -m uvicorn service:app --reload --port 8000    → lancement local
+#   http://localhost:8000/docs                             → Swagger UI
 
 service: "service:app"
 
@@ -18,9 +16,9 @@ labels:
   env: production
 
 include:
-  - "service.py"          # logique de l'API FastAPI et endpoints
-  - "save_model_pkl.py"   # script de réentraînement du modèle
-  - "test_api.py"         # script de test local
+  - "service.py"          # API FastAPI — sans ENERGYSTARScore
+  - "save_model_pkl.py"   # génération du modèle sans data leakage
+  - "test_api.py"         # tests unitaires
 
 python:
   packages:

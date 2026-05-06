@@ -1,16 +1,13 @@
 """
-service.py — FastAPI
-─────────────────────
-API de prédiction de consommation énergétique des bâtiments de Seattle.
+service.py — FastAPI (VERSION CORRIGÉE sans data leakage)
+──────────────────────────────────────────────────────────
+Correction : ENERGYSTARScore retiré du schéma d'entrée
+  → Ce score nécessite des données de consommation réelle pour être calculé.
+    Un propriétaire ne peut pas le fournir avant la mesure de consommation.
+    L'inclure constitue du data leakage.
 
-Installation :
-    pip install fastapi uvicorn scikit-learn pandas numpy pydantic
-
-Lancer :
-    uvicorn service:app --reload --port 3000
-
-Interface Swagger :
-    http://localhost:3000/docs
+Lancer : python3 -m uvicorn service:app --reload --port 8000
+Swagger : http://localhost:8000/docs
 """
 
 from __future__ import annotations
@@ -20,17 +17,18 @@ import pandas as pd
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field, field_validator, model_validator
 
-# ══════════════════════════════════════════════════════════════════════════════
-# SCHÉMA D'ENTRÉE — validation Pydantic
-# ══════════════════════════════════════════════════════════════════════════════
+# ══════════════════════════════════════════════════════════════════
+# SCHÉMA D'ENTRÉE — validation Pydantic (sans ENERGYSTARScore)
+# ══════════════════════════════════════════════════════════════════
 
 class BuildingInput(BaseModel):
     NumberofBuildings: int = Field(ge=1, le=100, examples=[1],
         description="Nombre de bâtiments sur la parcelle (1–100)")
     NumberofFloors: int = Field(ge=1, le=150, examples=[5],
         description="Nombre d'étages (1–150)")
-    ENERGYSTARScore: float = Field(ge=1.0, le=100.0, examples=[67.0],
-        description="Score ENERGY STAR (mettre 67 si inconnu)")
+    # ENERGYSTARScore supprimé — data leakage
+    # Ce score est calculé à partir des données de consommation réelle
+    # que l'on cherche justement à prédire.
     YearBuilt: int = Field(ge=1850, le=2016, examples=[1985],
         description="Année de construction (1850–2016)")
     PropertyGFATotal: float = Field(gt=0, le=5_000_000, examples=[50000.0],
@@ -50,7 +48,7 @@ class BuildingInput(BaseModel):
     CouncilDistrictCode: int = Field(ge=1, le=7, examples=[7],
         description="Arrondissement du conseil municipal (1–7)")
     LargestPropertyUseType: str = Field(examples=["Office"],
-        description="Type d'usage principal (ex: Office, Hotel, Retail Store, K-12 School)")
+        description="Type d'usage principal (ex: Office, Hotel, Retail Store)")
 
     @field_validator("LargestPropertyUseType")
     @classmethod
@@ -71,9 +69,9 @@ class BuildingInput(BaseModel):
         extra = "forbid"
 
 
-# ══════════════════════════════════════════════════════════════════════════════
+# ══════════════════════════════════════════════════════════════════
 # SCHÉMA DE SORTIE
-# ══════════════════════════════════════════════════════════════════════════════
+# ══════════════════════════════════════════════════════════════════
 
 class PredictionOutput(BaseModel):
     prediction_kBtu: float = Field(description="Consommation prédite en kBtu/an")
@@ -81,17 +79,22 @@ class PredictionOutput(BaseModel):
     model_version: str     = Field(description="Version du modèle")
 
 
-# ══════════════════════════════════════════════════════════════════════════════
-# CHARGEMENT DU MODÈLE
-# ══════════════════════════════════════════════════════════════════════════════
+# ══════════════════════════════════════════════════════════════════
+# FEATURES — identique à save_model_pkl.py (sans ENERGYSTARScore)
+# ══════════════════════════════════════════════════════════════════
 
 FEATURES_NUM = [
-    "NumberofBuildings", "NumberofFloors", "ENERGYSTARScore",
+    "NumberofBuildings", "NumberofFloors",
     "BuildingAge", "ParkingRatio", "GFAPerFloor",
     "MainUseRatio", "HasSecondUse", "HasThirdUse",
     "Latitude", "Longitude", "CouncilDistrictCode",
 ]
 FEATURES_CAT = ["LargestPropertyUseType", "EraConstruction"]
+
+
+# ══════════════════════════════════════════════════════════════════
+# CHARGEMENT DU MODÈLE
+# ══════════════════════════════════════════════════════════════════
 
 try:
     with open("model.pkl", "rb") as f:
@@ -102,19 +105,21 @@ except FileNotFoundError:
     print("ATTENTION : model.pkl introuvable — lancez d'abord save_model_pkl.py")
 
 
-# ══════════════════════════════════════════════════════════════════════════════
+# ══════════════════════════════════════════════════════════════════
 # APPLICATION FASTAPI
-# ══════════════════════════════════════════════════════════════════════════════
+# ══════════════════════════════════════════════════════════════════
 
 app = FastAPI(
     title="Seattle Energy Predictor",
     description=(
         "API de prédiction de la consommation énergétique annuelle "
         "des bâtiments non résidentiels de Seattle.\n\n"
-        "**Modèle** : Random Forest optimisé (R²≈0.87)\n\n"
+        "**Modèle** : Random Forest sans data leakage "
+        "(ENERGYSTARScore exclu)\n\n"
+        "**Target** : SiteEnergyUseWN(kBtu) — normalisée météo\n\n"
         "**Unités** : kBtu/an et MWh/an"
     ),
-    version="1.0.0",
+    version="2.0.0",
 )
 
 
@@ -124,7 +129,7 @@ def feature_engineering(b: BuildingInput) -> pd.DataFrame:
     row = {
         "NumberofBuildings":      b.NumberofBuildings,
         "NumberofFloors":         b.NumberofFloors,
-        "ENERGYSTARScore":        b.ENERGYSTARScore,
+        # ENERGYSTARScore absent
         "BuildingAge":            2016 - year,
         "ParkingRatio":           b.PropertyGFAParking / (b.PropertyGFATotal + 1),
         "GFAPerFloor":            b.PropertyGFATotal   / (b.NumberofFloors + 1),
@@ -158,16 +163,16 @@ def predict(building: BuildingInput):
     """
     Prédit la consommation énergétique annuelle d'un bâtiment.
 
-    Le pipeline applique automatiquement :
-    - Feature engineering (BuildingAge, GFAPerFloor, etc.)
-    - StandardScaler sur les features numériques
-    - OneHotEncoder sur les features catégorielles
-    - Random Forest optimisé (R²≈0.87)
+    Variables structurelles uniquement — pas de data leakage :
+    - Taille et structure du bâtiment (GFA, étages, parking)
+    - Âge et époque de construction
+    - Type d'usage principal
+    - Localisation géographique
     """
     if pipeline is None:
         raise HTTPException(
             status_code=503,
-            detail="Modèle non chargé. Lancez d'abord save_model_pkl.py"
+            detail="Modèle non chargé. Lancez d'abord : python3 save_model_pkl.py"
         )
     input_df = feature_engineering(building)
     log_pred = pipeline.predict(input_df)
@@ -175,5 +180,5 @@ def predict(building: BuildingInput):
     return PredictionOutput(
         prediction_kBtu=round(kBtu, 2),
         prediction_MWh=round(kBtu / 3412.14, 2),
-        model_version="random_forest_v1_r2_0.87",
+        model_version="random_forest_v2_sans_energystar",
     )
