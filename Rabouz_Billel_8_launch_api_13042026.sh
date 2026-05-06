@@ -2,7 +2,7 @@
 
 # ═══════════════════════════════════════════════════════════════
 #  launch_api.sh — Lancement automatique de l'API Seattle Energy
-#  Framework : FastAPI | Port : 8000
+#  Framework : FastAPI | Port : 3000
 #  Lancer avec : bash launch_api.sh
 # ═══════════════════════════════════════════════════════════════
 
@@ -65,12 +65,12 @@ if [ ! -f "service.py" ]; then
 fi
 echo -e "${GREEN}✓ service.py trouvé${NC}"
 
-# ── Lancement de l'API FastAPI sur le port 8000 ───────────────────
+# ── Lancement de l'API FastAPI sur le port 3000 ───────────────────
 echo ""
-echo -e "${BLUE}🚀 Lancement de l'API sur http://localhost:8000${NC}"
-echo -e "${BLUE}📖 Interface Swagger : http://localhost:8000/docs${NC}"
+echo -e "${BLUE}🚀 Lancement de l'API sur http://localhost:3000${NC}"
+echo -e "${BLUE}📖 Interface Swagger : http://localhost:3000/docs${NC}"
 echo -e "${YELLOW}⚠  Pour arrêter : Ctrl + C${NC}"
 echo ""
 
 # python3 -m uvicorn garantit l'utilisation du uvicorn du venv
-python3 -m uvicorn service:app --reload --port 8000
+python3 -m uvicorn service:app --reload --port 3000

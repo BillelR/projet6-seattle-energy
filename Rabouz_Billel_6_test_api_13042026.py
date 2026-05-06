@@ -4,11 +4,11 @@ test_api.py — VERSION CORRIGÉE
 Corrections :
   - ENERGYSTARScore retiré de tous les payloads (data leakage)
   - /health appelé en GET (et non POST)
-  - Port harmonisé à 8000
+  - Port harmonisé à 3000
   - Commande de lancement corrigée (FastAPI)
 
 Lancer l'API d'abord :
-    python3 -m uvicorn service:app --reload --port 8000
+    python3 -m uvicorn service:app --reload --port 3000
 
 Puis dans un autre terminal :
     python3 test_api.py
@@ -16,7 +16,7 @@ Puis dans un autre terminal :
 
 import requests
 
-BASE_URL = "http://localhost:8000"
+BASE_URL = "http://localhost:3000"
 
 
 def test_predict(label: str, payload: dict) -> None:
@@ -36,7 +36,7 @@ def test_predict(label: str, payload: dict) -> None:
             print(f"  Erreur : {r.text[:300]}")
     except requests.exceptions.ConnectionError:
         print("  ERREUR : l'API n'est pas démarrée.")
-        print("  Lancez : python3 -m uvicorn service:app --reload --port 8000")
+        print("  Lancez : python3 -m uvicorn service:app --reload --port 3000")
 
 
 # ── Test 1 : Grand immeuble de bureaux ────────────────────────────

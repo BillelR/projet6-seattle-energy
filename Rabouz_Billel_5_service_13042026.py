@@ -6,8 +6,8 @@ Correction : ENERGYSTARScore retiré du schéma d'entrée
     Un propriétaire ne peut pas le fournir avant la mesure de consommation.
     L'inclure constitue du data leakage.
 
-Lancer : python3 -m uvicorn service:app --reload --port 8000
-Swagger : http://localhost:8000/docs
+Lancer : python3 -m uvicorn service:app --reload --port 3000
+Swagger : http://localhost:3000/docs
 """
 
 from __future__ import annotations
